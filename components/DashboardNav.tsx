@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Calendar, CheckSquare, FolderOpen } from 'lucide-react'
+import { Calendar, CheckSquare, FolderOpen, Settings, PieChart } from 'lucide-react'
 
 const navItems = [
   {
@@ -20,6 +20,16 @@ const navItems = [
     title: 'Projets',
     href: '/projects',
     icon: FolderOpen,
+  },
+  {
+    title: 'Budget',
+    href: '/budget',
+    icon: PieChart,
+  },
+  {
+    title: 'Paramètres',
+    href: '/settings',
+    icon: Settings,
   },
 ]
 

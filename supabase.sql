@@ -126,3 +126,16 @@ CREATE INDEX IF NOT EXISTS idx_resources_user_id ON resources(user_id);
 CREATE INDEX IF NOT EXISTS idx_resources_project_id ON resources(project_id);
 CREATE INDEX IF NOT EXISTS idx_journal_entries_user_id ON journal_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_journal_entries_project_id ON journal_entries(project_id);
+
+-- Table des catégories de dépenses personnelles
+CREATE TABLE IF NOT EXISTS expense_categories (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL DEFAULT auth.uid(),
+  name text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE (user_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_expense_categories_user_id ON expense_categories(user_id);
+CREATE TRIGGER update_expense_categories_updated_at BEFORE UPDATE ON expense_categories FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

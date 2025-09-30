@@ -51,7 +51,7 @@ export interface TimeEntry {
 export interface Expense {
   id: string
   user_id: string
-  project_id: string
+  project_id?: string
   description: string
   amount: number
   category?: string

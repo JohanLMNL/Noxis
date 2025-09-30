@@ -8,6 +8,7 @@ ALTER TABLE time_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE journal_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expense_categories ENABLE ROW LEVEL SECURITY;
 
 -- Politiques pour la table projects
 CREATE POLICY "Users can view their own projects" ON projects
@@ -85,4 +86,17 @@ CREATE POLICY "Users can update their own journal entries" ON journal_entries
   FOR UPDATE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete their own journal entries" ON journal_entries
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Politiques pour la table expense_categories
+CREATE POLICY "Users can view their own expense categories" ON expense_categories
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own expense categories" ON expense_categories
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own expense categories" ON expense_categories
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own expense categories" ON expense_categories
   FOR DELETE USING (auth.uid() = user_id);

@@ -14,7 +14,7 @@ export function Toaster() {
   const { toasts } = useToast()
 
   return (
-    <ToastProvider>
+    <ToastProvider swipeDirection="down">
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
           <Toast key={id} {...props}>
@@ -29,7 +29,9 @@ export function Toaster() {
           </Toast>
         )
       })}
-      <ToastViewport />
+      <ToastViewport
+        className="fixed z-[100] flex max-h-screen w-full flex-col-reverse gap-2 left-0 right-0 top-auto bottom-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:top-0 sm:right-0 sm:left-auto sm:bottom-auto sm:flex-col sm:w-full sm:max-w-[420px] sm:p-4"
+      />
     </ToastProvider>
   )
 }
