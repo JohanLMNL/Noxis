@@ -21,6 +21,8 @@ export default async function TasksPage({
   searchParams: SearchParams
 }) {
   const supabase = createClient()
+  const today = new Date()
+  today.setHours(23,59,59,999)
   const { data: auth } = await supabase.auth.getUser()
   const userId = auth?.user?.id
 
@@ -57,7 +59,15 @@ export default async function TasksPage({
     query = query.contains('tags', [searchParams.tag])
   }
 
-  const { data: tasks } = await query
+  const { data: rawTasks } = await query
+  // Only show recurring tasks when next_due_date is due (<= today)
+  const tasks = (rawTasks || []).filter((t: any) => {
+    if (t.is_recurring) {
+      if (!t.next_due_date) return false
+      return new Date(t.next_due_date) <= today
+    }
+    return true
+  })
   
   // Récupérer les projets pour les filtres
   const { data: projects } = await supabase
@@ -81,10 +91,10 @@ export default async function TasksPage({
   ).sort()
 
   // Statistiques
-  const totalTasks = tasks?.length || 0
-  const completedTasks = tasks?.filter(task => task.status === 'terminé').length || 0
-  const inProgressTasks = tasks?.filter(task => task.status === 'en_cours').length || 0
-  const pendingTasks = tasks?.filter(task => task.status === 'à_faire').length || 0
+  const totalTasks = tasks.length
+  const completedTasks = tasks.filter(task => task.status === 'terminé').length
+  const inProgressTasks = tasks.filter(task => task.status === 'en_cours').length
+  const pendingTasks = tasks.filter(task => task.status === 'à_faire').length
 
   return (
     <div className="space-y-6">

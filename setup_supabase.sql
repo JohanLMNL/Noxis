@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS tasks (
   is_recurring boolean DEFAULT false,
   rrule text, -- Stockage de la règle RRULE
   recurring_parent_id uuid REFERENCES tasks(id) ON DELETE CASCADE,
+  -- Nouveau modèle: une seule ligne avec planification
+  original_due_date timestamptz,
+  next_due_date timestamptz,
+  last_completed_at timestamptz,
   
   -- Métadonnées
   tags text[] DEFAULT '{}',
@@ -117,6 +121,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_at ON tasks(due_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_next_due_date ON tasks(next_due_date);
+CREATE INDEX IF NOT EXISTS idx_tasks_is_recurring ON tasks(is_recurring);
 CREATE INDEX IF NOT EXISTS idx_time_entries_user_id ON time_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_time_entries_project_id ON time_entries(project_id);
 CREATE INDEX IF NOT EXISTS idx_time_entries_date ON time_entries(date);

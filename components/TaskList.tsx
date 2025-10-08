@@ -6,7 +6,7 @@ import { TaskCard } from '@/components/TaskCard'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatRelativeDate } from '@/lib/dates'
-import { getNextOccurrence } from '@/lib/rrule/nextOccurrence'
+import { computeNextAfterCompletion } from '@/lib/rrule/schedule'
 import { useRouter } from 'next/navigation'
 import type { Task } from '@/lib/types'
 
@@ -42,46 +42,22 @@ export function TaskList({ tasks, showProject = false }: TaskListProps) {
 
       // Si la tâche est marquée comme terminée
       if (newStatus === 'terminé') {
-        updateData.completed_at = new Date().toISOString()
-        // Optimistic: reflect completed in UI instantly
-        setItems(prev => prev.map(t => t.id === taskId ? { ...t, status: 'terminé', completed_at: updateData.completed_at! } : t))
+        const nowIso = new Date().toISOString()
+        updateData.completed_at = nowIso
+        // Optimistic: remove item (it should disappear)
+        setItems(prev => prev.filter(t => t.id !== taskId))
 
-        // Si c'est une tâche récurrente, créer la prochaine occurrence
+        // Si c'est une tâche récurrente, recalculer next_due_date et conserver la tâche active
         if (task.is_recurring && task.rrule) {
-          const nextOccurrence = getNextOccurrence(task.rrule, new Date())
+          const nextDue = computeNextAfterCompletion(task.rrule, new Date())
+          const nextIso = nextDue ? nextDue.toISOString() : null
 
-          if (nextOccurrence) {
-            // Normaliser à début de journée (00:00) pour qu'elle s'affiche le jour J
-            const due = new Date(nextOccurrence)
-            due.setHours(0, 0, 0, 0)
-
-            // Créer une nouvelle tâche pour la prochaine occurrence
-            const { data: inserted, error: insertError } = await supabase
-              .from('tasks')
-              .insert({
-                title: task.title,
-                description: task.description,
-                priority: task.priority,
-                project_id: task.project_id,
-                due_at: due.toISOString(),
-                status: 'à_faire',
-                is_recurring: true,
-                rrule: task.rrule,
-                recurring_parent_id: task.recurring_parent_id || task.id,
-                tags: task.tags,
-                estimated_minutes: task.estimated_minutes
-              })
-              .select('*')
-            if (insertError) throw insertError
-            if (inserted && inserted.length > 0) {
-              // Ajouter la nouvelle occurrence à la liste locale
-              setItems(prev => [
-                // Place new recurring task near the top for visibility
-                inserted[0] as Task,
-                ...prev
-              ])
-            }
-          }
+          // For recurring tasks, we want to keep status 'à_faire' and update scheduling fields
+          updateData.status = 'à_faire'
+          ;(updateData as any).last_completed_at = nowIso
+          ;(updateData as any).next_due_date = nextIso
+          // also clear completed_at since we keep it pending for next cycle
+          updateData.completed_at = undefined
         }
       } else {
         updateData.completed_at = undefined

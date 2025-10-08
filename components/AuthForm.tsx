@@ -19,6 +19,29 @@ export function AuthForm() {
   const router = useRouter()
   const supabase = createClient()
 
+  const handleResetPassword = async () => {
+    setError('')
+    setSuccess('')
+    if (!email) {
+      setError('Veuillez renseigner votre email pour réinitialiser le mot de passe.')
+      return
+    }
+    try {
+      setLoading(true)
+      const redirectTo = `${window.location.origin}/auth/update-password`
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+      if (error) {
+        setError(error.message)
+      } else {
+        setSuccess('Email de réinitialisation envoyé. Vérifiez votre boîte mail.')
+      }
+    } catch (err) {
+      setError('Impossible d\'envoyer l\'email de réinitialisation')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -106,6 +129,18 @@ export function AuthForm() {
             disabled={loading}
           />
         </div>
+        {!isSignUp && (
+          <div>
+            <button
+              type="button"
+              onClick={handleResetPassword}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors underline"
+              disabled={loading}
+            >
+              Mot de passe oublié ?
+            </button>
+          </div>
+        )}
       </div>
       
       <Button

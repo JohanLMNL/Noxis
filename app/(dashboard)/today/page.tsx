@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { TaskQuickAdd } from '@/components/TaskQuickAdd'
 import { TaskList } from '@/components/TaskList'
-import { formatDate, getTodayRange, isOverdue } from '@/lib/dates'
+import { formatDate, getTodayRange } from '@/lib/dates'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Clock, AlertTriangle } from 'lucide-react'
@@ -24,16 +24,13 @@ export default async function TodayPage() {
     )
   }
 
-  // Récupérer les tâches du jour
-  const { data: todayTasks } = await supabase
+  // Récupérer toutes les tâches non terminées, on partitionne côté serveur
+  const { data: allUserTasks } = await supabase
     .from('tasks')
     .select('*')
     .eq('user_id', userId)
-    .gte('due_at', start.toISOString())
-    .lte('due_at', end.toISOString())
     .neq('status', 'terminé')
-    .order('priority', { ascending: false })
-    .order('due_at', { ascending: true })
+    .order('created_at', { ascending: false })
 
   // Calculer la plage "cette semaine" (de demain 00:00 à dimanche 23:59:59.999)
   const tomorrowStart = new Date(start)
@@ -46,32 +43,32 @@ export default async function TodayPage() {
   weekEnd.setDate(weekEnd.getDate() + daysUntilSunday)
   weekEnd.setHours(23, 59, 59, 999)
 
-  // Tâches de la semaine (hors aujourd'hui)
-  const { data: weekTasks } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('due_at', tomorrowStart.toISOString())
-    .lte('due_at', weekEnd.toISOString())
-    .neq('status', 'terminé')
-    .order('due_at', { ascending: true })
+  // Partitionner côté serveur en utilisant une "due" effective
+  const effectiveDue = (t: any): Date | null => {
+    const iso = t.is_recurring && t.next_due_date ? t.next_due_date : t.due_at
+    return iso ? new Date(iso) : null
+  }
 
-  const { data: overdueTasks } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('user_id', userId)
-    .lt('due_at', start.toISOString())
-    .neq('status', 'terminé')
-    .order('due_at', { ascending: true })
+  const sortedTasks = (allUserTasks || []).slice().sort((a, b) => {
+    const ad = effectiveDue(a)?.getTime() ?? Infinity
+    const bd = effectiveDue(b)?.getTime() ?? Infinity
+    if (ad === bd) return (b.priority || '').localeCompare(a.priority || '')
+    return ad - bd
+  })
 
-  // Tâches sans échéance
-  const { data: undatedTasks } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('user_id', userId)
-    .is('due_at', null)
-    .neq('status', 'terminé')
-    .order('created_at', { ascending: false })
+  const overdueTasks = sortedTasks.filter(t => {
+    const d = effectiveDue(t)
+    return d && d < start
+  })
+  const todayTasks = sortedTasks.filter(t => {
+    const d = effectiveDue(t)
+    return d && d >= start && d <= end
+  })
+  const weekTasks = sortedTasks.filter(t => {
+    const d = effectiveDue(t)
+    return d && d >= tomorrowStart && d <= weekEnd
+  })
+  const undatedTasks = sortedTasks.filter(t => !effectiveDue(t))
 
   const { data: focusTask } = await supabase
     .from('tasks')
@@ -82,10 +79,10 @@ export default async function TodayPage() {
 
   // Map project info without joins (avoid RLS joins)
   const allTasks = [
-    ...(todayTasks || []),
-    ...(weekTasks || []),
-    ...(overdueTasks || []),
-    ...(undatedTasks || [])
+    ...todayTasks,
+    ...weekTasks,
+    ...overdueTasks,
+    ...undatedTasks
   ]
   const projectIds = Array.from(new Set(allTasks.map(t => t.project_id).filter(Boolean))) as string[]
   let projectMap: Record<string, { name: string; color: string }> = {}
@@ -109,7 +106,7 @@ export default async function TodayPage() {
   const undatedWithProject = attachProject(undatedTasks)
   const focusWithProject = focusTask ? { ...focusTask, project: focusTask.project_id ? projectMap[focusTask.project_id] : undefined } : null
 
-  const totalTasks = (todayTasks?.length || 0) + (overdueTasks?.length || 0) + (weekTasks?.length || 0) + (undatedTasks?.length || 0)
+  const totalTasks = todayTasks.length + overdueTasks.length + weekTasks.length + undatedTasks.length
 
   return (
     <div className="space-y-6">

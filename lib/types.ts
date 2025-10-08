@@ -25,6 +25,9 @@ export interface Task {
   is_recurring: boolean
   rrule?: string
   recurring_parent_id?: string
+  original_due_date?: string
+  next_due_date?: string
+  last_completed_at?: string
   tags: string[]
   estimated_minutes?: number
   actual_minutes?: number

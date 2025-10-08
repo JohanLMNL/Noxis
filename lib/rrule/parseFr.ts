@@ -26,7 +26,7 @@ const weekdayMap: Record<string, number> = {
   'jeudi': RRule.TH.weekday,
   'vendredi': RRule.FR.weekday,
   'samedi': RRule.SA.weekday,
-  'dimanche': RRule.SU.weekday
+  'dimanche': RRule.SU.weekday,
 }
 
 export function parseFrenchRecurrence(text: string, startDate: Date = new Date()): string | null {
@@ -34,89 +34,64 @@ export function parseFrenchRecurrence(text: string, startDate: Date = new Date()
   
   // Patterns de base
   const patterns = [
-    // "tous les X jours/semaines/mois"
     {
-      regex: /tous les (\d+) (jours?|semaines?|mois)/,
+      regex: /tous les (\d+) (jours?|semaines?|mois|années?)/,
       handler: (match: RegExpMatchArray) => {
         const interval = parseInt(match[1])
         const unit = match[2]
         const freq = frequencyMap[unit]
-        if (freq) {
-          return new RRule({
-            freq,
-            interval,
-            dtstart: startDate
-          }).toString()
-        }
-        return null
+        if (!freq) return null
+        return new RRule({ freq, interval, dtstart: startDate }).toString()
       }
     },
-    
-    // "chaque jour/semaine/mois"
+    {
+      regex: /(1er|2e|3e|4e|dernier)\s+(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\s+du\s+mois/,
+      handler: (match: RegExpMatchArray) => {
+        const ordinal = match[1]
+        const day = match[2]
+        const posMap: Record<string, number> = { '1er': 1, '2e': 2, '3e': 3, '4e': 4, 'dernier': -1 }
+        const bysetpos = posMap[ordinal]
+        if (bysetpos === undefined) return null
+        const weekdayObj = day === 'lundi' ? RRule.MO : day === 'mardi' ? RRule.TU : day === 'mercredi' ? RRule.WE : day === 'jeudi' ? RRule.TH : day === 'vendredi' ? RRule.FR : day === 'samedi' ? RRule.SA : RRule.SU
+        return new RRule({ freq: RRule.MONTHLY, byweekday: [weekdayObj], bysetpos, dtstart: startDate }).toString()
+      }
+    },
     {
       regex: /chaque (jour|semaine|mois|année)/,
       handler: (match: RegExpMatchArray) => {
         const unit = match[1]
         const freq = frequencyMap[unit]
-        if (freq) {
-          return new RRule({
-            freq,
-            dtstart: startDate
-          }).toString()
-        }
-        return null
+        if (!freq) return null
+        return new RRule({ freq, dtstart: startDate }).toString()
       }
     },
-    
-    // "tous les lundis/mardis/etc"
     {
       regex: /tous les (lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)s?/,
       handler: (match: RegExpMatchArray) => {
         const day = match[1]
         const weekday = weekdayMap[day]
-        if (weekday !== undefined) {
-          return new RRule({
-            freq: RRule.WEEKLY,
-            byweekday: [weekday],
-            dtstart: startDate
-          }).toString()
-        }
-        return null
+        if (weekday === undefined) return null
+        return new RRule({ freq: RRule.WEEKLY, byweekday: [weekday], dtstart: startDate }).toString()
       }
     },
-    
-    // "le X de chaque mois" (ex: "le 15 de chaque mois")
     {
       regex: /le (\d+) de chaque mois/,
       handler: (match: RegExpMatchArray) => {
         const monthday = parseInt(match[1])
-        if (monthday >= 1 && monthday <= 31) {
-          return new RRule({
-            freq: RRule.MONTHLY,
-            bymonthday: [monthday],
-            dtstart: startDate
-          }).toString()
-        }
-        return null
+        if (monthday < 1 || monthday > 31) return null
+        return new RRule({ freq: RRule.MONTHLY, bymonthday: [monthday], dtstart: startDate }).toString()
       }
     },
-    
-    // "quotidien/hebdomadaire/mensuel/annuel"
     {
       regex: /^(quotidien|quotidienne|hebdomadaire|mensuel|mensuelle|annuel|annuelle)$/,
       handler: (match: RegExpMatchArray) => {
         const unit = match[1]
         const freq = frequencyMap[unit]
-        if (freq) {
-          return new RRule({
-            freq,
-            dtstart: startDate
-          }).toString()
-        }
-        return null
+        if (!freq) return null
+        return new RRule({ freq, dtstart: startDate }).toString()
       }
     }
-  ]
+  ] as const
   
   // Essayer chaque pattern
   for (const pattern of patterns) {

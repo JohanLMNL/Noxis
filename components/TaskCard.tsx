@@ -58,7 +58,8 @@ export function TaskCard({
   const [showDetails, setShowDetails] = useState(false)
   
   const StatusIcon = statusIcons[task.status]
-  const isTaskOverdue = task.due_at && isOverdue(task.due_at) && task.status !== 'terminé'
+  const effectiveDue = task.is_recurring && task.next_due_date ? task.next_due_date : task.due_at
+  const isTaskOverdue = effectiveDue && isOverdue(effectiveDue) && task.status !== 'terminé'
 
   const handleStatusClick = () => {
     if (task.status === 'à_faire') {
@@ -153,15 +154,15 @@ export function TaskCard({
                 </span>
               </div>
 
-              {/* Date d'échéance */}
-              {task.due_at && (
+              {/* Date d'échéance (next_due_date pour récurrentes) */}
+              {effectiveDue && (
                 <div className={cn(
                   "flex items-center space-x-1 text-xs",
                   isTaskOverdue ? "text-red-400" : "text-muted-foreground"
                 )}>
                   {isTaskOverdue && <AlertTriangle className="h-3 w-3" />}
                   <Clock className="h-3 w-3" />
-                  <span>{formatRelativeDate(task.due_at)}</span>
+                  <span>{formatRelativeDate(effectiveDue)}</span>
                 </div>
               )}
 
